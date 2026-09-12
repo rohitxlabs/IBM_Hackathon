@@ -31,7 +31,7 @@ export default function ParentChildrenPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="mt-6 space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1">

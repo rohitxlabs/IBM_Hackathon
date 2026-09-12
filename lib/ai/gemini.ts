@@ -15,8 +15,9 @@ const DEFAULT_TIMEOUT_MS = 20_000;
 export type AiProvider = "gemini" | "mock";
 
 export function getProvider(): AiProvider {
-  const configured = (process.env.AI_PROVIDER ?? "mock").toLowerCase();
-  return configured === "gemini" ? "gemini" : "mock";
+  if (process.env.AI_PROVIDER === "mock") return "mock";
+  if (process.env.GEMINI_API_KEY || process.env.AI_PROVIDER === "gemini") return "gemini";
+  return "mock";
 }
 
 export function isGeminiConfigured(): boolean {
