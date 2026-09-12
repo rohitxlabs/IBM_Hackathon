@@ -1,0 +1,10 @@
+export { Navbar } from "./Navbar";
+export { Hero } from "./Hero";
+export { Stats } from "./Stats";
+export { Features } from "./Features";
+export { Stakeholders } from "./Stakeholders";
+export { AIAssistant } from "./AIAssistant";
+export { Testimonials } from "./Testimonials";
+export { FAQ } from "./FAQ";
+export { CTA } from "./CTA";
+export { Footer } from "./Footer";
