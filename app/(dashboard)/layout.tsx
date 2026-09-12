@@ -1,22 +1,27 @@
-"use client";
+import { SessionProvider } from "@/hooks/useSession";
+import { AuthGate } from "@/components/auth";
+import { AppShell } from "@/components/layout";
 
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Header } from "@/components/layout/Header";
-import { MobileNav } from "@/components/layout/MobileNav";
-
+/**
+ * Frame for every signed-in screen. The session is fetched once here and
+ * shared through context, so individual pages never re-request it.
+ */
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[var(--surface)]">
-      <Sidebar />
-      <div className="lg:ml-64">
-        <Header />
-        <main className="p-6 pb-24 lg:pb-6">{children}</main>
-      </div>
-      <MobileNav />
-    </div>
+    <SessionProvider>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+      <AuthGate>
+        <AppShell>{children}</AppShell>
+      </AuthGate>
+    </SessionProvider>
   );
 }

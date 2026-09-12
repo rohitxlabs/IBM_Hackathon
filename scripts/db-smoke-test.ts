@@ -39,6 +39,15 @@ const EXPECTED_TABLES = [
   "mistakes",
   "practice_tests",
   "practice_questions",
+  "messages",
+  "notifications",
+  "learning_sessions",
+  "quiz_assignments",
+  "quiz_attempts",
+  "student_answers",
+  "concept_performances",
+  "ai_analyses",
+  "conversations",
 ];
 
 let failures = 0;
@@ -67,9 +76,9 @@ async function main() {
     check(`table ${table}`, present.has(table));
   }
   check(
-    "16 core tables created",
+    "every expected table created",
     EXPECTED_TABLES.every((t) => present.has(t)),
-    `${EXPECTED_TABLES.filter((t) => present.has(t)).length}/16`,
+    `${EXPECTED_TABLES.filter((t) => present.has(t)).length}/${EXPECTED_TABLES.length}`,
   );
 
   console.log("\n3. Seeded relationships");
@@ -96,7 +105,57 @@ async function main() {
     (student?.practiceTests[0]?.questions.length ?? 0) > 0,
   );
 
-  console.log("\n4. Constraints");
+  console.log("\n4. Concept-level performance");
+  const attempt = await prisma.quizAttempt.findFirst({
+    where: { studentId: student!.id },
+    include: {
+      answers: true,
+      concepts: true,
+      analysis: true,
+      quiz: { include: { learningSession: true } },
+    },
+  });
+  check("a seeded quiz attempt exists", Boolean(attempt));
+  check(
+    "the attempt stores one answer per question",
+    attempt?.answers.length === attempt?.totalQuestions,
+    `${attempt?.answers.length} answers / ${attempt?.totalQuestions} questions`,
+  );
+  check(
+    "per-concept accuracy is recorded",
+    (attempt?.concepts.length ?? 0) >= 3,
+  );
+  check(
+    "a weak concept is identified despite a passing score",
+    attempt?.concepts.some(
+      (c) => c.level === "WEAK" && c.conceptTag === "Completing the Square",
+    ) === true,
+  );
+  check(
+    "a strong concept is identified in the same attempt",
+    attempt?.concepts.some((c) => c.level === "STRONG") === true,
+  );
+  check("the attempt has a stored AI analysis", Boolean(attempt?.analysis));
+  check(
+    "the quiz traces back to a teacher learning session",
+    Boolean(attempt?.quiz.learningSession),
+  );
+
+  const followUp = await prisma.practiceTest.findFirst({
+    where: { kind: "PERSONALIZED", sourceAttemptId: attempt?.id },
+    include: { questions: true },
+  });
+  check("a personalised follow-up quiz was generated", Boolean(followUp));
+  check(
+    "the follow-up targets the weak concepts",
+    followUp?.questions.every(
+      (q) =>
+        q.conceptTag === "Completing the Square" ||
+        q.conceptTag === "Discriminant",
+    ) === true,
+  );
+
+  console.log("\n5. Constraints");
   const link = student!.parents[0];
   try {
     await prisma.studentParent.create({
@@ -121,7 +180,7 @@ async function main() {
     check("unique(users.email) enforced", true);
   }
 
-  console.log("\n5. Cascade behaviour (rolled back)");
+  console.log("\n6. Cascade behaviour (rolled back)");
   try {
     await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({

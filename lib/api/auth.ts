@@ -1,46 +1,79 @@
-// Frontend API client for authentication. Calls the backend's
-// /api/auth/** Route Handlers — this file must not implement auth logic
-// itself (no password hashing, no session/JWT handling). Those endpoints
-// don't exist yet on the backend; calls here will fail with NOT_FOUND
-// until the backend developer adds them, which is expected during
-// parallel development.
+/**
+ * Frontend API client for authentication.
+ *
+ * Calls the backend's /api/auth/** Route Handlers and nothing more: no
+ * password hashing, no token handling, no session storage. The session lives
+ * in an httpOnly cookie the browser sends automatically, which is why no
+ * token is ever read or written here.
+ */
 
 import { api } from "./client";
+import type { Role, User } from "./types";
 
-// Matches the backend's Prisma `Role` enum values.
-export type AuthRole = "STUDENT" | "TEACHER" | "PARENT";
-
-export interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: AuthRole;
-}
+export type AuthRole = Role;
+export type AuthUser = User;
 
 export interface LoginPayload {
   email: string;
   password: string;
 }
 
-export interface RegisterPayload {
+interface BaseRegisterPayload {
   name: string;
   email: string;
   password: string;
-  role: AuthRole;
 }
 
-export function login(payload: LoginPayload) {
-  return api.post<AuthUser>("/api/auth/login", payload);
+/**
+ * Registration is role-discriminated: the backend requires different profile
+ * fields per role, so the form collects exactly those and no others.
+ */
+export type RegisterPayload =
+  | (BaseRegisterPayload & {
+      role: "STUDENT";
+      rollNumber: string;
+      gradeLevel: number;
+      dateOfBirth?: string;
+    })
+  | (BaseRegisterPayload & {
+      role: "TEACHER";
+      employeeId: string;
+      department?: string;
+      bio?: string;
+    })
+  | (BaseRegisterPayload & {
+      role: "PARENT";
+      phone?: string;
+      occupation?: string;
+    });
+
+export async function login(payload: LoginPayload): Promise<AuthUser> {
+  const { user } = await api.post<{ user: AuthUser }>(
+    "/api/auth/login",
+    payload,
+  );
+  return user;
 }
 
-export function register(payload: RegisterPayload) {
-  return api.post<AuthUser>("/api/auth/register", payload);
+export async function register(payload: RegisterPayload): Promise<AuthUser> {
+  const { user } = await api.post<{ user: AuthUser }>(
+    "/api/auth/register",
+    payload,
+  );
+  return user;
 }
 
-export function logout() {
-  return api.post<null>("/api/auth/logout");
+export function logout(): Promise<{ loggedOut: boolean }> {
+  return api.post<{ loggedOut: boolean }>("/api/auth/logout");
 }
 
-export function getSession() {
-  return api.get<AuthUser>("/api/auth/session");
+/** The signed-in user, or a 401 that callers treat as "signed out". */
+export async function getCurrentUser(): Promise<AuthUser> {
+  const { user } = await api.get<{ user: AuthUser }>("/api/auth/me");
+  return user;
+}
+
+/** Landing route for a role, used after signing in. */
+export function homePathForRole(role: Role): string {
+  return `/${role.toLowerCase()}`;
 }
