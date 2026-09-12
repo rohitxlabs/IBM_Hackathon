@@ -2,8 +2,9 @@ import {
   Navbar,
   Hero,
   Stats,
-  Features,
   Stakeholders,
+  Features,
+  Comparison,
   AIAssistant,
   Testimonials,
   FAQ,
@@ -13,12 +14,13 @@ import {
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-white">
       <Navbar />
       <Hero />
       <Stats />
-      <Features />
       <Stakeholders />
+      <Features />
+      <Comparison />
       <AIAssistant />
       <Testimonials />
       <FAQ />
