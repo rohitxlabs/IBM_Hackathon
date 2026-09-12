@@ -1,0 +1,422 @@
+// Jinni — AI learning platform
+// Prisma schema: 16 core models. Progress is derived from academic data,
+// so there is deliberately no progress table.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  PARENT
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  LATE
+  GRADED
+}
+
+enum ExamType {
+  QUIZ
+  UNIT_TEST
+  MIDTERM
+  FINAL
+  PRACTICAL
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+enum PracticeTestStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum MistakeSource {
+  ASSIGNMENT
+  EXAM
+  PRACTICE
+  SELF_REPORTED
+}
+
+/// 1. users — authentication + identity for every role
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  avatarUrl    String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student Student?
+  teacher Teacher?
+  parent  Parent?
+
+  gradedSubmissions Submission[] @relation("SubmissionGrader")
+  recordedResults   ExamResult[] @relation("ExamResultRecorder")
+
+  @@index([role])
+  @@map("users")
+}
+
+/// 2. students
+model Student {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  rollNumber   String    @unique
+  gradeLevel   Int
+  dateOfBirth  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parents        StudentParent[]
+  classes        ClassStudent[]
+  submissions    Submission[]
+  examResults    ExamResult[]
+  mistakes       Mistake[]
+  practiceTests  PracticeTest[]
+
+  @@index([gradeLevel])
+  @@map("students")
+}
+
+/// 3. teachers
+model Teacher {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  employeeId String   @unique
+  department String?
+  bio        String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classes     Class[]
+  subjects    Subject[]
+  assignments Assignment[]
+  exams       Exam[]
+
+  @@map("teachers")
+}
+
+/// 4. parents
+model Parent {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  phone      String?
+  occupation String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children StudentParent[]
+
+  @@map("parents")
+}
+
+/// 5. student_parents — many-to-many link between students and guardians
+model StudentParent {
+  id           String   @id @default(cuid())
+  studentId    String
+  parentId     String
+  relationship String   @default("GUARDIAN")
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, parentId])
+  @@index([parentId])
+  @@map("student_parents")
+}
+
+/// 6. classes
+model Class {
+  id           String   @id @default(cuid())
+  name         String
+  section      String
+  academicYear String
+  gradeLevel   Int
+  teacherId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  teacher     Teacher        @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  students    ClassStudent[]
+  subjects    Subject[]
+  assignments Assignment[]
+  exams       Exam[]
+
+  @@unique([name, section, academicYear])
+  @@index([teacherId])
+  @@map("classes")
+}
+
+/// 7. class_students — enrollment
+model ClassStudent {
+  id         String   @id @default(cuid())
+  classId    String
+  studentId  String
+  enrolledAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+  @@index([studentId])
+  @@map("class_students")
+}
+
+/// 8. subjects
+model Subject {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  classId     String?
+  teacherId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  class         Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+  teacher       Teacher?       @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  topics        Topic[]
+  assignments   Assignment[]
+  exams         Exam[]
+  mistakes      Mistake[]
+  practiceTests PracticeTest[]
+
+  @@index([classId])
+  @@index([teacherId])
+  @@map("subjects")
+}
+
+/// 9. topics
+model Topic {
+  id          String   @id @default(cuid())
+  subjectId   String
+  name        String
+  description String?
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subject           Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  assignments       Assignment[]
+  exams             Exam[]
+  mistakes          Mistake[]
+  practiceTests     PracticeTest[]
+  practiceQuestions PracticeQuestion[]
+
+  @@unique([subjectId, name])
+  @@index([subjectId])
+  @@map("topics")
+}
+
+/// 10. assignments
+model Assignment {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  classId     String
+  subjectId   String
+  topicId     String?
+  teacherId   String
+  dueDate     DateTime
+  maxScore    Int      @default(100)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  class       Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject     Subject      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  topic       Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  teacher     Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  submissions Submission[]
+
+  @@index([classId])
+  @@index([subjectId])
+  @@index([teacherId])
+  @@index([dueDate])
+  @@map("assignments")
+}
+
+/// 11. submissions
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  studentId    String
+  content      String?
+  fileUrl      String?
+  status       SubmissionStatus @default(SUBMITTED)
+  submittedAt  DateTime         @default(now())
+  score        Int?
+  feedback     String?
+  gradedAt     DateTime?
+  gradedById   String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  gradedBy   User?      @relation("SubmissionGrader", fields: [gradedById], references: [id], onDelete: SetNull)
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([status])
+  @@map("submissions")
+}
+
+/// 12. exams
+model Exam {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  classId         String
+  subjectId       String
+  topicId         String?
+  teacherId       String
+  examType        ExamType @default(UNIT_TEST)
+  examDate        DateTime
+  durationMinutes Int      @default(60)
+  maxScore        Int      @default(100)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  class   Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject Subject      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  topic   Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  teacher Teacher      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  results ExamResult[]
+
+  @@index([classId])
+  @@index([subjectId])
+  @@index([examDate])
+  @@map("exams")
+}
+
+/// 13. exam_results
+model ExamResult {
+  id           String   @id @default(cuid())
+  examId       String
+  studentId    String
+  score        Int
+  grade        String?
+  remarks      String?
+  recordedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  exam       Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  recordedBy User?   @relation("ExamResultRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@unique([examId, studentId])
+  @@index([studentId])
+  @@map("exam_results")
+}
+
+/// 14. mistakes — feeds weak-topic detection
+model Mistake {
+  id            String        @id @default(cuid())
+  studentId     String
+  subjectId     String
+  topicId       String?
+  question      String
+  studentAnswer String
+  correctAnswer String
+  explanation   String?
+  source        MistakeSource @default(SELF_REPORTED)
+  sourceId      String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  topic   Topic?  @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, subjectId])
+  @@index([topicId])
+  @@index([createdAt])
+  @@map("mistakes")
+}
+
+/// 15. practice_tests
+model PracticeTest {
+  id            String             @id @default(cuid())
+  studentId     String
+  subjectId     String
+  topicId       String?
+  title         String
+  difficulty    Difficulty         @default(MEDIUM)
+  questionType  QuestionType       @default(MCQ)
+  questionCount Int                @default(5)
+  status        PracticeTestStatus @default(DRAFT)
+  score         Int?
+  totalScore    Int?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  generatedBy   String             @default("mock")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  student   Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject            @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  topic     Topic?             @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  questions PracticeQuestion[]
+
+  @@index([studentId, status])
+  @@index([subjectId])
+  @@map("practice_tests")
+}
+
+/// 16. practice_questions
+model PracticeQuestion {
+  id             String       @id @default(cuid())
+  practiceTestId String
+  topicId        String?
+  orderIndex     Int          @default(0)
+  questionType   QuestionType @default(MCQ)
+  prompt         String
+  options        Json?
+  correctAnswer  String
+  studentAnswer  String?
+  isCorrect      Boolean?
+  explanation    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  practiceTest PracticeTest @relation(fields: [practiceTestId], references: [id], onDelete: Cascade)
+  topic        Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@unique([practiceTestId, orderIndex])
+  @@index([practiceTestId])
+  @@map("practice_questions")
+}
