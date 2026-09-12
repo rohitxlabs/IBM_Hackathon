@@ -122,19 +122,16 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
-  cursor: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a, button, input, textarea, select, [role="button"], .cursor-pointer {
-  cursor: none;
+a, button, [role="button"], .cursor-pointer {
+  cursor: pointer;
 }
 
-@media (hover: none) and (pointer: coarse) {
-  body, a, button, input, textarea, select, [role="button"], .cursor-pointer {
-    cursor: auto;
-  }
+input, textarea, select {
+  cursor: text;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -513,7 +510,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   font-size: 1rem;
   color: var(--foreground);
-  cursor: none;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 

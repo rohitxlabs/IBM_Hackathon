@@ -1,133 +1,242 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input } from "@/components/ui";
-import { register, type AuthRole } from "@/lib/api/auth";
-import { ApiRequestError } from "@/lib/api/client";
+import { AuthCard, AuthFooterLink, FormError } from "@/components/auth/AuthCard";
+import { homePathForRole, register, type RegisterPayload } from "@/lib/api/auth";
+import { fieldErrorsFromError, messageFromError } from "@/lib/api/errors";
+import type { Role } from "@/lib/api/types";
 
-const roles: { value: AuthRole; label: string }[] = [
-  { value: "STUDENT", label: "Student" },
-  { value: "TEACHER", label: "Teacher" },
-  { value: "PARENT", label: "Parent" },
+const roles: { value: Role; label: string; hint: string }[] = [
+  { value: "STUDENT", label: "Student", hint: "Track work and practise" },
+  { value: "TEACHER", label: "Teacher", hint: "Run classes and grading" },
+  { value: "PARENT", label: "Parent", hint: "Follow your child's progress" },
 ];
+
+/** Mirrors the backend's password rule so the user hears about it sooner. */
+function passwordProblem(password: string): string | null {
+  if (password.length < 8) return "Use at least 8 characters";
+  if (!/[a-z]/.test(password)) return "Include a lowercase letter";
+  if (!/[A-Z]/.test(password)) return "Include an uppercase letter";
+  if (!/[0-9]/.test(password)) return "Include a number";
+  return null;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [role, setRole] = useState<AuthRole>("STUDENT");
+  const [role, setRole] = useState<Role>("STUDENT");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // Role-specific profile fields the backend requires.
+  const [rollNumber, setRollNumber] = useState("");
+  const [gradeLevel, setGradeLevel] = useState("9");
+  const [employeeId, setEmployeeId] = useState("");
+  const [department, setDepartment] = useState("");
+  const [phone, setPhone] = useState("");
+
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
-  async function handleRegister(e: React.FormEvent) {
-    e.preventDefault();
+  function buildPayload(): RegisterPayload {
+    const base = { name, email, password };
+
+    if (role === "STUDENT") {
+      return {
+        ...base,
+        role: "STUDENT",
+        rollNumber,
+        gradeLevel: Number(gradeLevel),
+      };
+    }
+
+    if (role === "TEACHER") {
+      return {
+        ...base,
+        role: "TEACHER",
+        employeeId,
+        ...(department ? { department } : {}),
+      };
+    }
+
+    return { ...base, role: "PARENT", ...(phone ? { phone } : {}) };
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setError(null);
+    setFieldErrors({});
+
+    const problem = passwordProblem(password);
+    if (problem) {
+      setFieldErrors({ password: problem });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const user = await register({ name, email, password, role });
-      router.push(`/${user.role.toLowerCase()}`);
+      const user = await register(buildPayload());
+      router.push(homePathForRole(user.role));
+      router.refresh();
     } catch (err) {
-      if (err instanceof ApiRequestError && err.code === "NOT_FOUND") {
-        setError("Sign up isn't available yet — the backend is still being built.");
-      } else if (err instanceof ApiRequestError) {
-        setError(err.message);
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
-    } finally {
+      setError(messageFromError(err, "We couldn't create your account."));
+      setFieldErrors(fieldErrorsFromError(err));
       setLoading(false);
     }
   }
 
   return (
-    <div className="card bg-white p-8">
-      <div className="text-center mb-8">
-        <Link href="/" className="inline-flex items-center gap-2 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--gradient-start)] to-[var(--gradient-mid)] flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
-            </svg>
-          </div>
-          <span className="text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>Jinni</span>
-        </Link>
-        <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>Create Account</h1>
-        <p className="text-sm text-gray-500 mt-1">Start your learning journey today</p>
-      </div>
+    <AuthCard
+      title="Create your account"
+      subtitle="Learning that focuses on getting better, not just scoring"
+      footer={
+        <AuthFooterLink
+          prompt="Already have an account?"
+          href="/login"
+          label="Sign in"
+        />
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <fieldset>
+          <legend className="block text-sm font-medium text-gray-700 mb-2">
+            I am a
+          </legend>
+          <div className="grid grid-cols-3 gap-2">
+            {roles.map((option) => {
+              const selected = role === option.value;
 
-      <form onSubmit={handleRegister} className="space-y-5" noValidate>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
-          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="I am a...">
-            {roles.map((r) => (
-              <button
-                key={r.value}
-                type="button"
-                role="radio"
-                aria-checked={role === r.value}
-                onClick={() => setRole(r.value)}
-                className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  role === r.value
-                    ? "bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-mid)] text-white shadow-md"
-                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  title={option.hint}
+                  onClick={() => setRole(option.value)}
+                  className={`py-2.5 px-2 rounded-[var(--radius-sm)] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
+                    selected
+                      ? "bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-mid)] text-white shadow-sm"
+                      : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
-        </div>
+          <p className="mt-2 text-xs text-gray-500">
+            {roles.find((option) => option.value === role)?.hint}
+          </p>
+        </fieldset>
 
         <Input
-          label="Full Name"
-          placeholder="Jordan Lee"
+          name="name"
+          label="Full name"
+          placeholder="Riya Sharma"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(event) => setName(event.target.value)}
+          error={fieldErrors.name}
           autoComplete="name"
           required
         />
 
         <Input
           type="email"
+          name="email"
           label="Email"
           placeholder="you@example.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(event) => setEmail(event.target.value)}
+          error={fieldErrors.email}
           autoComplete="email"
           required
         />
 
         <Input
           type="password"
+          name="password"
           label="Password"
           placeholder="••••••••"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(event) => setPassword(event.target.value)}
+          error={fieldErrors.password}
+          hint="At least 8 characters, with upper and lower case and a number"
           autoComplete="new-password"
-          minLength={8}
           required
         />
 
-        {error && (
-          <p role="alert" className="text-sm text-danger-600 bg-danger-50 rounded-xl px-4 py-2.5">
-            {error}
-          </p>
+        {role === "STUDENT" && (
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Input
+              name="rollNumber"
+              label="Roll number"
+              placeholder="STU-2401"
+              value={rollNumber}
+              onChange={(event) => setRollNumber(event.target.value)}
+              error={fieldErrors.rollNumber}
+              required
+            />
+            <Input
+              type="number"
+              name="gradeLevel"
+              label="Grade"
+              min={1}
+              max={12}
+              value={gradeLevel}
+              onChange={(event) => setGradeLevel(event.target.value)}
+              error={fieldErrors.gradeLevel}
+              required
+            />
+          </div>
         )}
 
+        {role === "TEACHER" && (
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Input
+              name="employeeId"
+              label="Employee ID"
+              placeholder="TCH-1001"
+              value={employeeId}
+              onChange={(event) => setEmployeeId(event.target.value)}
+              error={fieldErrors.employeeId}
+              required
+            />
+            <Input
+              name="department"
+              label="Department"
+              placeholder="Mathematics"
+              value={department}
+              onChange={(event) => setDepartment(event.target.value)}
+              error={fieldErrors.department}
+              hint="Optional"
+            />
+          </div>
+        )}
+
+        {role === "PARENT" && (
+          <Input
+            name="phone"
+            label="Phone"
+            placeholder="+91 90000 00000"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            error={fieldErrors.phone}
+            hint="Optional. Helps teachers reach you."
+            autoComplete="tel"
+          />
+        )}
+
+        {error && <FormError message={error} />}
+
         <Button type="submit" fullWidth loading={loading}>
-          Create Account
+          Create account
         </Button>
       </form>
-
-      <p className="text-center text-sm text-gray-500 mt-6">
-        Already have an account?{" "}
-        <Link href="/login" className="font-medium text-[var(--accent)] hover:underline">
-          Sign in
-        </Link>
-      </p>
-    </div>
+    </AuthCard>
   );
 }

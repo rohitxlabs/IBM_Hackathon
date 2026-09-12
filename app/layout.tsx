@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Cursor3D } from "@/components/Cursor3D";
 
 export const metadata: Metadata = {
   title: "Jinni — AI-Powered School Management Software",
@@ -21,7 +20,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col">
         {children}
-        <Cursor3D />
       </body>
     </html>
   );

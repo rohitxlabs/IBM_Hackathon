@@ -3,6 +3,7 @@ export { Hero } from "./Hero";
 export { Stats } from "./Stats";
 export { Features } from "./Features";
 export { Stakeholders } from "./Stakeholders";
+export { Comparison } from "./Comparison";
 export { AIAssistant } from "./AIAssistant";
 export { Testimonials } from "./Testimonials";
 export { FAQ } from "./FAQ";
