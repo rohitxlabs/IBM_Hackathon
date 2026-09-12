@@ -28,7 +28,7 @@ export default function ForParentsPage() {
               Stay Connected with Your <span className="gradient-text">Child&apos;s Education</span>
             </h1>
             <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              Be involved in your child's learning journey. Track progress, communicate with teachers, and never miss a school update.
+              Be involved in your child&apos;s learning journey. Track progress, communicate with teachers, and never miss a school update.
             </p>
             <div className="flex justify-center gap-4 mt-8">
               <Link href="/register" className="btn-primary">Start Free Trial</Link>

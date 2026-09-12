@@ -1,9 +1,9 @@
 import { type HTMLAttributes } from "react";
 
-interface CardProps extends HTMLAttributes<HTMLDivElement> {
+type CardProps = HTMLAttributes<HTMLDivElement> & {
   hover?: boolean;
   padding?: "none" | "sm" | "md" | "lg";
-}
+};
 
 const paddingStyles = {
   none: "",
@@ -34,17 +34,18 @@ export function Card({
   );
 }
 
-interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
-  title: string;
+type CardHeaderProps = HTMLAttributes<HTMLDivElement> & {
+  title?: string;
   description?: string;
   action?: React.ReactNode;
-}
+};
 
 export function CardHeader({
   title,
   description,
   action,
   className = "",
+  children,
   ...props
 }: CardHeaderProps) {
   return (
@@ -52,10 +53,16 @@ export function CardHeader({
       className={`flex items-start justify-between gap-4 ${className}`}
       {...props}
     >
-      <div className="min-w-0">
-        <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-        {description && (
-          <p className="mt-1 text-sm text-gray-500">{description}</p>
+      <div className="min-w-0 flex-1">
+        {title ? (
+          <>
+            <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+            {description && (
+              <p className="mt-1 text-sm text-gray-500">{description}</p>
+            )}
+          </>
+        ) : (
+          children
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}

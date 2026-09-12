@@ -129,6 +129,22 @@ export interface GenerateLessonQuizRequest {
   count: number;
 }
 
+/* ------------------------- topic-based quiz generation ---------------------- */
+
+/**
+ * A request for AI quiz generation from a free-text topic alone (no lesson material
+ * required). Teachers provide a subject/topic/grade level and the AI produces a
+ * concept-tagged MCQ quiz. This is the entry point the user requested: teacher picks a
+ * topic and Jinni spins up 10 questions that only the assigned students can see.
+ */
+export interface GenerateTopicQuizRequest {
+  subjectName: string;
+  topic: string;
+  gradeLevel: number;
+  difficulty: "EASY" | "MEDIUM" | "HARD";
+  count: number;
+}
+
 /* -------------------------- attempt analysis ------------------------------ */
 
 /**

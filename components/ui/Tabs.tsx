@@ -41,7 +41,7 @@ export function Tabs({
   );
 }
 
-interface TabsListProps extends HTMLAttributes<HTMLDivElement> {}
+type TabsListProps = HTMLAttributes<HTMLDivElement>;
 
 export function TabsList({ children, className = "" }: TabsListProps) {
   return (
@@ -57,9 +57,9 @@ export function TabsList({ children, className = "" }: TabsListProps) {
   );
 }
 
-interface TabsTriggerProps extends HTMLAttributes<HTMLButtonElement> {
+type TabsTriggerProps = HTMLAttributes<HTMLButtonElement> & {
   value: string;
-}
+};
 
 export function TabsTrigger({
   value,
@@ -93,9 +93,9 @@ export function TabsTrigger({
   );
 }
 
-interface TabsContentProps extends HTMLAttributes<HTMLDivElement> {
+type TabsContentProps = HTMLAttributes<HTMLDivElement> & {
   value: string;
-}
+};
 
 export function TabsContent({
   value,

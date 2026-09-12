@@ -1,10 +1,10 @@
 import { type HTMLAttributes } from "react";
 
-interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
+type SkeletonProps = HTMLAttributes<HTMLDivElement> & {
   variant?: "text" | "circular" | "rectangular";
   width?: string | number;
   height?: string | number;
-}
+};
 
 export function Skeleton({
   variant = "text",
@@ -28,7 +28,7 @@ export function Skeleton({
   );
 }
 
-interface SkeletonCardProps extends HTMLAttributes<HTMLDivElement> {}
+type SkeletonCardProps = HTMLAttributes<HTMLDivElement>;
 
 export function SkeletonCard({ className = "" }: SkeletonCardProps) {
   return (
@@ -48,10 +48,10 @@ export function SkeletonCard({ className = "" }: SkeletonCardProps) {
   );
 }
 
-interface SkeletonTableProps extends HTMLAttributes<HTMLDivElement> {
+type SkeletonTableProps = HTMLAttributes<HTMLDivElement> & {
   rows?: number;
   cols?: number;
-}
+};
 
 export function SkeletonTable({ rows = 5, cols = 4, className = "" }: SkeletonTableProps) {
   return (

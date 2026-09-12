@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { mockStudents } from "@/lib/mock-data/users";

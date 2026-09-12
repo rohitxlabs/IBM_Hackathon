@@ -21,7 +21,6 @@ export default function ParentDashboard() {
     if (sessionStatus !== "authenticated") return;
 
     let active = true;
-    setLoading(true);
     api.get<ParentDashboard>("/api/dashboard")
       .then((data) => {
         if (active) {

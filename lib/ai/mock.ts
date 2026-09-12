@@ -8,6 +8,7 @@ import type {
   ExplainRequest,
   GenerateLessonQuizRequest,
   GenerateQuestionsRequest,
+  GenerateTopicQuizRequest,
 } from "@/lib/ai/types";
 
 /**
@@ -199,4 +200,126 @@ export function mockAdaptiveQuiz(
   );
 
   return [...focusQuestions, ...reviewQuestions];
+}
+
+/* --------------------------- topic-based quiz mock ------------------------- */
+
+const CONCEPT_BANK: Record<string, string[]> = {
+  Math: [
+    "Order of operations (PEMDAS)",
+    "Fraction addition with unlike denominators",
+    "Linear equation solving for x",
+    "Area of a triangle",
+    "Ratio and proportion word problems",
+    "Negative number arithmetic",
+    "Percent increase / decrease",
+    "Algebraic substitution",
+    "Perimeter and area of composite shapes",
+    "Probability of independent events",
+    "Mean, median, mode comparison",
+    "Equivalent fractions",
+    "Decimal long division",
+    "Pythagorean theorem basics",
+  ],
+  Science: [
+    "Photosynthesis reactants vs products",
+    "Newton's three laws of motion",
+    "States of matter transitions",
+    "Parts of a plant cell vs animal cell",
+    "The water cycle stages",
+    "Electrical conductors vs insulators",
+    "Digestive system major organs",
+    "Food chain trophic levels",
+    "Solar system planet order",
+    "Acid-base chemistry basics",
+    "Force, mass, acceleration (F=ma)",
+    "Ecosystem interdependence",
+    "The rock cycle: igneous/sedimentary/metamorphic",
+    "Circuit components in series vs parallel",
+  ],
+  English: [
+    "Identifying the main idea in a paragraph",
+    "Subject-verb agreement",
+    "Comma usage in compound sentences",
+    "Theme vs plot distinction",
+    "Types of figurative language (simile, metaphor, personification)",
+    "Tense consistency in a narrative",
+    "Prefix / suffix / root word meanings",
+    "Author's purpose: inform, persuade, entertain",
+    "Context clues for vocabulary",
+    "Characterization methods (direct, indirect)",
+    "Story elements: setting, conflict, resolution",
+    "Common homophones (there/their/they're)",
+    "Transition words for essays",
+    "Point of view: first vs third person",
+  ],
+};
+
+const DEFAULT_CONCEPTS = [
+  "Core definition",
+  "Common examples",
+  "Typical mistakes",
+  "Step-by-step procedure",
+  "Units and notation",
+  "Real-world application",
+  "Comparison with related concept A",
+  "Comparison with related concept B",
+  "Derived rule or shortcut",
+  "Non-obvious edge case",
+  "Underlying principle",
+  "Alternative representation",
+];
+
+function pickConcepts(topic: string, subject: string, count: number): string[] {
+  const bank =
+    CONCEPT_BANK[subject] ??
+    CONCEPT_BANK.Math;
+
+  const combined = [
+    ...bank.map((c) => `${c} in ${topic}`),
+    ...DEFAULT_CONCEPTS.map((c) => `${c} for ${topic}`),
+  ];
+
+  const result: string[] = [];
+  for (let i = 0; i < count; i += 1) {
+    result.push(combined[i % combined.length]);
+  }
+  return result;
+}
+
+/**
+ * Deterministic topic-based quiz generator. Produces the requested number of
+ * MCQ questions with synthetic (but structurally valid) options and concept
+ * tags. Difficulty rotates evenly so the preview screen is visually realistic.
+ */
+export function mockTopicQuiz(
+  request: GenerateTopicQuizRequest,
+): AiLessonQuestion[] {
+  const concepts = pickConcepts(request.topic, request.subjectName, request.count);
+  const difficulties: AiLessonQuestion["difficulty"][] = [
+    "EASY",
+    "MEDIUM",
+    "HARD",
+  ];
+
+  return concepts.map((concept, index) => {
+    const number = index + 1;
+    const label = concept.length > 30 ? concept.slice(0, 27) + "..." : concept;
+
+    const options = [
+      `Correct: ${label}`,
+      `Common distractor A (${request.topic} Q${number})`,
+      `Common distractor B (${request.topic} Q${number})`,
+      `None of the above`,
+    ];
+
+    return {
+      prompt: `[${difficulties[index % difficulties.length]}] In the context of ${request.topic}, which statement best captures "${label}"? (Q${number})`,
+      options,
+      correctAnswer: options[0],
+      explanation: `This question tests ${label}. Review the core definition of ${request.topic} and compare each distractor against the main idea.`,
+      conceptTag: label,
+      difficulty: difficulties[index % difficulties.length],
+    };
+  });
 }

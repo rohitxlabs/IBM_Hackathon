@@ -1,12 +1,36 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { mockStudents } from "@/lib/mock-data/users";
 
+type PerformanceTier = {
+  variant: "success" | "warning" | "danger";
+  label: "Good" | "Average" | "Needs Support";
+};
+
+function tierForStudent(id: string): PerformanceTier {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  const r = hash / 0xffffffff;
+  if (r < 0.45) return { variant: "success", label: "Good" };
+  if (r < 0.85) return { variant: "warning", label: "Average" };
+  return { variant: "danger", label: "Needs Support" };
+}
+
 export default function TeacherStudentsPage() {
+  const studentsWithTier = useMemo(
+    () =>
+      mockStudents.map((s) => ({
+        ...s,
+        performance: tierForStudent(s.id),
+      })),
+    []
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -43,7 +67,7 @@ export default function TeacherStudentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {mockStudents.map((student) => (
+              {studentsWithTier.map((student) => (
                 <tr key={student.id} className="hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
@@ -61,8 +85,8 @@ export default function TeacherStudentsPage() {
                     {student.rollNumber}
                   </td>
                   <td className="py-3 px-4">
-                    <Badge variant={Math.random() > 0.5 ? "success" : "warning"}>
-                      {Math.random() > 0.5 ? "Good" : "Average"}
+                    <Badge variant={student.performance.variant}>
+                      {student.performance.label}
                     </Badge>
                   </td>
                   <td className="py-3 px-4">

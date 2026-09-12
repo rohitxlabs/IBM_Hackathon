@@ -45,7 +45,7 @@ export default function StudentAssignmentsPage() {
                       {assignment.subject}
                     </p>
                   </div>
-                  <Badge variant={getStatusColor(assignment.status) as any}>
+                  <Badge variant={getStatusColor(assignment.status)}>
                     {assignment.status}
                   </Badge>
                 </div>
