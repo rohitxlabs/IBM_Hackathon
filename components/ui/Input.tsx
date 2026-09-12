@@ -1,11 +1,11 @@
 import { forwardRef, type InputHTMLAttributes } from "react";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
   error?: string;
   hint?: string;
   icon?: React.ReactNode;
-}
+};
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, icon, className = "", id, ...props }, ref) => {

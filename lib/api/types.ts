@@ -278,6 +278,10 @@ export interface WeakTopic {
   reasons: string[];
 }
 
+export type ReviewStatus = "PENDING_REVIEW" | "APPROVED";
+
+export type QuizKind = "TEACHER_ASSIGNED" | "PERSONALIZED" | "SELF_PRACTICE";
+
 export interface PracticeQuestion {
   id: string;
   orderIndex: number;
@@ -286,33 +290,46 @@ export interface PracticeQuestion {
   options?: string[] | null;
   topicId?: string | null;
   topic?: { id: string; name: string } | null;
-  /** Present only once the test has been submitted. */
   correctAnswer?: string;
   studentAnswer?: string | null;
   isCorrect?: boolean | null;
   explanation?: string | null;
+  conceptTag?: string | null;
+  difficulty?: Difficulty;
 }
 
 export interface PracticeTest {
   id: string;
-  studentId: string;
+  studentId?: string;
   subjectId: string;
   topicId?: string | null;
   title: string;
+  instructions?: string | null;
   difficulty: Difficulty;
   questionType: QuestionType;
   questionCount: number;
   status: PracticeTestStatus;
+  kind: QuizKind;
+  reviewStatus: ReviewStatus;
+  learningSessionId?: string | null;
+  createdByUserId?: string;
   score?: number | null;
   totalScore?: number | null;
   startedAt?: string | null;
   completedAt?: string | null;
   generatedBy: string;
   createdAt: string;
+  updatedAt?: string;
   subject: SubjectSummary;
   topic?: { id: string; name: string } | null;
   questions?: PracticeQuestion[];
-  _count?: { questions: number };
+  _count?: { questions: number; assignments?: number; attempts?: number };
+  learningSession?: {
+    id: string;
+    title: string;
+    classId: string;
+    teacherId: string;
+  } | null;
 }
 
 /** What creating a practice test tells the UI about how it was personalised. */

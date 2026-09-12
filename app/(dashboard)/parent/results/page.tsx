@@ -13,7 +13,7 @@ export default function ParentResultsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Results</h1>
-        <p className="text-gray-600">View your children's academic performance</p>
+        <p className="text-gray-600">View your children&apos;s academic performance</p>
       </div>
 
       <Card>

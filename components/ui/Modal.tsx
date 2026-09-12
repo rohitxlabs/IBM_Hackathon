@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, type HTMLAttributes } from "react";
 
-interface ModalProps extends HTMLAttributes<HTMLDivElement> {
+type ModalProps = HTMLAttributes<HTMLDivElement> & {
   open: boolean;
   onClose: () => void;
   title?: string;
   description?: string;
   size?: "sm" | "md" | "lg";
-}
+};
 
 const sizeStyles = {
   sm: "max-w-md",
@@ -79,7 +79,7 @@ export function Modal({
   );
 }
 
-interface ModalFooterProps extends HTMLAttributes<HTMLDivElement> {}
+type ModalFooterProps = HTMLAttributes<HTMLDivElement>;
 
 export function ModalFooter({ children, className = "" }: ModalFooterProps) {
   return (

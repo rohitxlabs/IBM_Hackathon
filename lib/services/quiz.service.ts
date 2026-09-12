@@ -12,8 +12,10 @@ import {
   generateLessonQuiz,
   regenerateLessonQuestion,
 } from "@/lib/ai/lessonQuizGenerator";
+import { generateTopicQuiz } from "@/lib/ai/topicQuizGenerator";
 import type {
   assignQuizSchema,
+  generateTopicQuizSchema,
   listQuizzesQuerySchema,
   updateQuizQuestionSchema,
   updateQuizSchema,
@@ -176,6 +178,87 @@ export async function generateQuizFromSession(
   };
 }
 
+/**
+ * Creates a PracticeTest (kind=TEACHER_ASSIGNED) from a free-text topic,
+ * AI-generating the requested number of MCQ questions. The quiz starts in
+ * PENDING_REVIEW — it is invisible to students until the teacher calls
+ * `approveQuiz` and then `assignQuiz` to the class/students.
+ *
+ * This is the backend for the user-requested flow:
+ *   teacher → topic → AI creates 10-question quiz → students only see it once assigned.
+ */
+export async function generateQuizFromTopic(
+  actor: Actor & { teacherId: string },
+  input: z.infer<typeof generateTopicQuizSchema>,
+) {
+  if (input.classId) {
+    await assertCanManageClass(actor, input.classId);
+  }
+
+  const subject = await prisma.subject.findUnique({
+    where: { id: input.subjectId },
+    select: { id: true, name: true },
+  });
+  if (!subject) throw new ApiError("NOT_FOUND", "Subject not found");
+
+  const generated = await generateTopicQuiz({
+    subjectName: subject.name,
+    topic: input.topic,
+    gradeLevel: input.gradeLevel,
+    difficulty: input.difficulty,
+    count: input.questionCount,
+  });
+
+  const quiz = await prisma.practiceTest.create({
+    data: {
+      subjectId: subject.id,
+      title: `${subject.name} — ${input.topic} Quiz`,
+      difficulty: input.difficulty,
+      questionType: "MCQ",
+      questionCount: generated.questions.length,
+      status: "COMPLETED",
+      kind: "TEACHER_ASSIGNED",
+      reviewStatus: input.assignToClass && input.classId ? "APPROVED" : "PENDING_REVIEW",
+      createdByUserId: actor.userId,
+      generatedBy: generated.generatedBy,
+      instructions: `AI-generated quiz on ${input.topic}.`,
+      questions: {
+        create: generated.questions.map((q, index) => ({
+          orderIndex: index + 1,
+          questionType: "MCQ",
+          prompt: q.prompt,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation,
+          conceptTag: q.conceptTag,
+          difficulty: q.difficulty,
+        })),
+      },
+    },
+    select: {
+      ...quizSelect,
+      questions: { orderBy: { orderIndex: "asc" }, select: questionSelect },
+    },
+  });
+
+  let assignments: Awaited<ReturnType<typeof assignQuiz>> | null = null;
+
+  if (input.assignToClass && input.classId) {
+    assignments = await assignQuiz(actor, quiz.id, {
+      classId: input.classId,
+    });
+  }
+
+  return {
+    quiz,
+    generatedBy: generated.generatedBy,
+    ...(generated.fallbackReason
+      ? { aiFallbackReason: generated.fallbackReason }
+      : {}),
+    ...(assignments ? { assignments } : {}),
+  };
+}
+
 /** The full quiz with its answer key, for the teacher's review screen. */
 export async function getQuizForReview(actor: Actor, quizId: string) {
   await requireOwnedQuiz(actor, quizId);
@@ -253,13 +336,6 @@ export async function regenerateQuizQuestion(
     throw new ApiError("NOT_FOUND", "Question not found on this quiz");
   }
 
-  if (!quiz.learningSession) {
-    throw new ApiError(
-      "BAD_REQUEST",
-      "This quiz has no lesson material to regenerate from",
-    );
-  }
-
   const subject = await prisma.subject.findUnique({
     where: { id: quiz.subjectId },
     select: { name: true },
@@ -271,16 +347,35 @@ export async function regenerateQuizQuestion(
       })
     : null;
 
-  const { question: regenerated, generatedBy } = await regenerateLessonQuestion(
-    {
-      subjectName: subject?.name ?? "",
-      topicName: topic?.name ?? quiz.title,
-      gradeLevel: quiz.learningSession.gradeLevel,
-      material: quiz.learningSession.material,
+  const topicName = topic?.name ?? quiz.title;
+  const concept = question.conceptTag ?? topicName;
+
+  let regenerated: Awaited<ReturnType<typeof regenerateLessonQuestion>>["question"];
+  let generatedBy: "gemini" | "mock";
+
+  if (quiz.learningSession) {
+    const result = await regenerateLessonQuestion(
+      {
+        subjectName: subject?.name ?? "",
+        topicName,
+        gradeLevel: quiz.learningSession.gradeLevel,
+        material: quiz.learningSession.material,
+        count: 1,
+      },
+      concept,
+    );
+    ({ question: regenerated, generatedBy } = result);
+  } else {
+    const generated = await generateTopicQuiz({
+      subjectName: subject?.name ?? "General",
+      topic: topicName,
+      gradeLevel: 8,
+      difficulty: quiz.difficulty,
       count: 1,
-    },
-    question.conceptTag ?? quiz.title,
-  );
+    });
+    regenerated = { ...generated.questions[0], conceptTag: concept };
+    generatedBy = generated.generatedBy;
+  }
 
   const updated = await prisma.practiceQuestion.update({
     where: { id: questionId },
@@ -298,46 +393,61 @@ export async function regenerateQuizQuestion(
   return { question: updated, generatedBy };
 }
 
-/** Regenerates the whole quiz from the same session, discarding old questions. */
+/** Regenerates the whole quiz, discarding old questions. */
 export async function regenerateQuiz(actor: Actor, quizId: string) {
   const quiz = await requireOwnedQuiz(actor, quizId);
-
-  if (!quiz.learningSession) {
-    throw new ApiError(
-      "BAD_REQUEST",
-      "This quiz has no lesson material to regenerate from",
-    );
-  }
 
   const existingCount = await prisma.practiceQuestion.count({
     where: { practiceTestId: quizId },
   });
 
-  const sessionRow = await prisma.practiceTest.findUniqueOrThrow({
-    where: { id: quizId },
-    select: {
-      learningSession: {
-        select: { material: true, gradeLevel: true, subject: { select: { name: true } }, topic: { select: { name: true } } },
+  const subject = await prisma.subject.findUnique({
+    where: { id: quiz.subjectId },
+    select: { name: true },
+  });
+  const topic = quiz.topicId
+    ? await prisma.topic.findUnique({
+        where: { id: quiz.topicId },
+        select: { name: true },
+      })
+    : null;
+
+  let generated: Awaited<ReturnType<typeof generateLessonQuiz>>;
+
+  if (quiz.learningSession) {
+    const sessionRow = await prisma.practiceTest.findUniqueOrThrow({
+      where: { id: quizId },
+      select: {
+        learningSession: {
+          select: { material: true, gradeLevel: true, subject: { select: { name: true } }, topic: { select: { name: true } } },
+        },
+        subjectId: true,
+        topicId: true,
       },
-      subjectId: true,
-      topicId: true,
-    },
-  });
-
-  if (!sessionRow.learningSession) {
-    throw new ApiError(
-      "BAD_REQUEST",
-      "This quiz has no lesson material to regenerate from",
-    );
+    });
+    const ls = sessionRow.learningSession;
+    if (!ls) {
+      throw new ApiError(
+        "BAD_REQUEST",
+        "This quiz has no lesson material to regenerate from",
+      );
+    }
+    generated = await generateLessonQuiz({
+      subjectName: ls.subject.name,
+      topicName: ls.topic?.name ?? quiz.title,
+      gradeLevel: ls.gradeLevel,
+      material: ls.material,
+      count: existingCount || 10,
+    });
+  } else {
+    generated = await generateTopicQuiz({
+      subjectName: subject?.name ?? "General",
+      topic: topic?.name ?? quiz.title,
+      gradeLevel: 8,
+      difficulty: quiz.difficulty,
+      count: existingCount || 10,
+    });
   }
-
-  const generated = await generateLessonQuiz({
-    subjectName: sessionRow.learningSession.subject.name,
-    topicName: sessionRow.learningSession.topic?.name ?? quiz.title,
-    gradeLevel: sessionRow.learningSession.gradeLevel,
-    material: sessionRow.learningSession.material,
-    count: existingCount || 10,
-  });
 
   await prisma.$transaction([
     prisma.practiceQuestion.deleteMany({ where: { practiceTestId: quizId } }),
@@ -345,7 +455,7 @@ export async function regenerateQuiz(actor: Actor, quizId: string) {
       data: generated.questions.map((q, index) => ({
         practiceTestId: quizId,
         orderIndex: index + 1,
-        topicId: sessionRow.topicId,
+        topicId: quiz.topicId,
         questionType: "MCQ",
         prompt: q.prompt,
         options: q.options,
@@ -460,7 +570,10 @@ export async function listTeacherQuizzes(
   return prisma.practiceTest.findMany({
     where: {
       kind: "TEACHER_ASSIGNED",
-      learningSession: { teacherId: actor.teacherId },
+      OR: [
+        { learningSession: { teacherId: actor.teacherId } },
+        { createdByUserId: actor.userId },
+      ],
       ...(filters.subjectId ? { subjectId: filters.subjectId } : {}),
       ...(filters.classId
         ? { assignments: { some: { classId: filters.classId } } }

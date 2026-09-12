@@ -2,7 +2,6 @@
 
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Progress } from "@/components/ui/Progress";
-import { Badge } from "@/components/ui/Badge";
 import {
   getAttendanceStats,
   getSubjectAttendanceStats,

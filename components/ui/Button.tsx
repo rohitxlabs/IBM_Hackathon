@@ -3,13 +3,13 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg";
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
   icon?: React.ReactNode;
   fullWidth?: boolean;
-}
+};
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:

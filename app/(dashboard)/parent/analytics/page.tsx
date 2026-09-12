@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import {
   LineChart,
@@ -18,7 +18,7 @@ export default function ParentAnalyticsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-        <p className="text-gray-600">Track your children's academic progress</p>
+        <p className="text-gray-600">Track your children&apos;s academic progress</p>
       </div>
 
       <Card>

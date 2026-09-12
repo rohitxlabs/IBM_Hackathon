@@ -66,7 +66,7 @@ export default function AIAssistantPage() {
     if (!content.trim()) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       role: "user",
       content: content.trim(),
       timestamp: new Date(),
@@ -80,7 +80,7 @@ export default function AIAssistantPage() {
     await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000));
 
     const aiResponse: Message = {
-      id: (Date.now() + 1).toString(),
+      id: crypto.randomUUID(),
       role: "assistant",
       content: getAIResponse(content),
       timestamp: new Date(),

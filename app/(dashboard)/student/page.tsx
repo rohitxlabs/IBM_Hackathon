@@ -18,7 +18,6 @@ export default function StudentDashboard() {
     if (sessionStatus !== "authenticated") return;
 
     let cancelled = false;
-    setLoading(true);
     api
       .get<StudentDashboard>("/api/dashboard")
       .then((data) => {

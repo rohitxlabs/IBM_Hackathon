@@ -65,3 +65,18 @@ export const submitAttemptSchema = z
     answers: z.array(saveAnswerSchema).max(50).optional(),
   })
   .strict();
+
+/* ---------------------------- topic-based generation ------------------------ */
+
+export const generateTopicQuizSchema = z
+  .object({
+    topic: z.string().min(3).max(200).trim(),
+    subjectId: z.string().min(1).max(64),
+    classId: z.string().min(1).max(64).optional(),
+    gradeLevel: z.coerce.number().int().min(1).max(13).default(8),
+    difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).default("MEDIUM"),
+    questionCount: z.coerce.number().int().min(5).max(20).default(10),
+    assignToClass: z.boolean().default(false),
+  })
+  .strict();
+

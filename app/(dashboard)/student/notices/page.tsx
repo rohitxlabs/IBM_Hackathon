@@ -1,7 +1,6 @@
 "use client";
 
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { getNotifications } from "@/lib/mock-data/notifications";
 import { getRelativeTime } from "@/lib/utils";
 

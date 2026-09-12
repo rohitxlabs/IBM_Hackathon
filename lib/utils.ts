@@ -48,7 +48,16 @@ export function getDaysUntil(dateString: string): number {
   return Math.ceil(diffMs / 86400000);
 }
 
-export function getStatusColor(status: string): string {
+type BadgeVariantLint =
+  | "default"
+  | "primary"
+  | "secondary"
+  | "success"
+  | "warning"
+  | "danger"
+  | "outline";
+
+export function getStatusColor(status: string): BadgeVariantLint {
   switch (status) {
     case "present":
     case "graded":

@@ -12,7 +12,7 @@ export default function ParentAttendancePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Attendance</h1>
-        <p className="text-gray-600">Track your children's attendance</p>
+        <p className="text-gray-600">Track your children&apos;s attendance</p>
       </div>
 
       <Card>

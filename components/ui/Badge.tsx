@@ -1,13 +1,13 @@
 import { type HTMLAttributes } from "react";
 
-type BadgeVariant = "default" | "primary" | "secondary" | "success" | "warning" | "danger";
+type BadgeVariant = "default" | "primary" | "secondary" | "success" | "warning" | "danger" | "outline";
 type BadgeSize = "sm" | "md";
 
-interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
   variant?: BadgeVariant;
   size?: BadgeSize;
   dot?: boolean;
-}
+};
 
 const variantStyles: Record<BadgeVariant, string> = {
   default: "bg-gray-100 text-gray-700",
@@ -16,6 +16,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   success: "bg-success-100 text-success-700",
   warning: "bg-warning-100 text-warning-600",
   danger: "bg-danger-100 text-danger-600",
+  outline: "border border-gray-300 bg-white text-gray-700",
 };
 
 const dotStyles: Record<BadgeVariant, string> = {
@@ -25,6 +26,7 @@ const dotStyles: Record<BadgeVariant, string> = {
   success: "bg-success-500",
   warning: "bg-warning-500",
   danger: "bg-danger-500",
+  outline: "bg-gray-500",
 };
 
 export function Badge({

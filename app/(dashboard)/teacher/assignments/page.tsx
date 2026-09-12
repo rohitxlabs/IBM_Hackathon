@@ -64,7 +64,7 @@ export default function TeacherAssignmentsPage() {
                     {assignment.status === "submitted" ? "1" : "0"}/25
                   </td>
                   <td className="py-3 px-4">
-                    <Badge variant={getStatusColor(assignment.status) as any}>
+                    <Badge variant={getStatusColor(assignment.status)}>
                       {assignment.status}
                     </Badge>
                   </td>
