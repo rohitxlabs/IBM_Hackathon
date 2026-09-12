@@ -3,15 +3,44 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button, Input } from "@/components/ui";
+import { login, type AuthRole } from "@/lib/api/auth";
+import { ApiRequestError } from "@/lib/api/client";
+
+const roles: { value: AuthRole; label: string }[] = [
+  { value: "STUDENT", label: "Student" },
+  { value: "TEACHER", label: "Teacher" },
+  { value: "PARENT", label: "Parent" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<"student" | "teacher" | "parent">("student");
+  const [role, setRole] = useState<AuthRole>("STUDENT");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    router.push(`/${role}`);
-  };
+    setError(null);
+    setLoading(true);
+
+    try {
+      const user = await login({ email, password });
+      router.push(`/${user.role.toLowerCase()}`);
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.code === "NOT_FOUND") {
+        setError("Sign in isn't available yet — the backend is still being built.");
+      } else if (err instanceof ApiRequestError) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="card bg-white p-8">
@@ -28,49 +57,59 @@ export default function LoginPage() {
         <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
       </div>
 
-      <form onSubmit={handleLogin} className="space-y-5">
+      <form onSubmit={handleLogin} className="space-y-5" noValidate>
         {/* Role Selector */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(["student", "teacher", "parent"] as const).map((r) => (
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="I am a...">
+            {roles.map((r) => (
               <button
-                key={r}
+                key={r.value}
                 type="button"
-                onClick={() => setRole(r)}
-                className={`py-2.5 px-3 rounded-xl text-sm font-medium capitalize transition-all duration-200 ${
-                  role === r
+                role="radio"
+                aria-checked={role === r.value}
+                onClick={() => setRole(r.value)}
+                className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  role === r.value
                     ? "bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-mid)] text-white shadow-md"
                     : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                {r}
+                {r.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-          <input
-            type="email"
-            placeholder="you@example.com"
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 outline-none transition-all text-sm"
-          />
-        </div>
+        <Input
+          type="email"
+          label="Email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+          required
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-          <input
-            type="password"
-            placeholder="••••••••"
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 outline-none transition-all text-sm"
-          />
-        </div>
+        <Input
+          type="password"
+          label="Password"
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          required
+        />
 
-        <button type="submit" className="btn-primary w-full">
+        {error && (
+          <p role="alert" className="text-sm text-danger-600 bg-danger-50 rounded-xl px-4 py-2.5">
+            {error}
+          </p>
+        )}
+
+        <Button type="submit" fullWidth loading={loading}>
           Sign In
-        </button>
+        </Button>
       </form>
 
       <p className="text-center text-sm text-gray-500 mt-6">

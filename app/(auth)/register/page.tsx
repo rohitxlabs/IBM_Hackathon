@@ -3,15 +3,45 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button, Input } from "@/components/ui";
+import { register, type AuthRole } from "@/lib/api/auth";
+import { ApiRequestError } from "@/lib/api/client";
+
+const roles: { value: AuthRole; label: string }[] = [
+  { value: "STUDENT", label: "Student" },
+  { value: "TEACHER", label: "Teacher" },
+  { value: "PARENT", label: "Parent" },
+];
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [role, setRole] = useState<"student" | "teacher" | "parent">("student");
+  const [role, setRole] = useState<AuthRole>("STUDENT");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+  async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
-    router.push(`/${role}`);
-  };
+    setError(null);
+    setLoading(true);
+
+    try {
+      const user = await register({ name, email, password, role });
+      router.push(`/${user.role.toLowerCase()}`);
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.code === "NOT_FOUND") {
+        setError("Sign up isn't available yet — the backend is still being built.");
+      } else if (err instanceof ApiRequestError) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="card bg-white p-8">
@@ -25,70 +55,71 @@ export default function RegisterPage() {
           <span className="text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>Jinni</span>
         </Link>
         <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>Create Account</h1>
-        <p className="text-sm text-gray-500 mt-1">Start your free trial today</p>
+        <p className="text-sm text-gray-500 mt-1">Start your learning journey today</p>
       </div>
 
-      <form onSubmit={handleRegister} className="space-y-5">
+      <form onSubmit={handleRegister} className="space-y-5" noValidate>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(["student", "teacher", "parent"] as const).map((r) => (
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="I am a...">
+            {roles.map((r) => (
               <button
-                key={r}
+                key={r.value}
                 type="button"
-                onClick={() => setRole(r)}
-                className={`py-2.5 px-3 rounded-xl text-sm font-medium capitalize transition-all duration-200 ${
-                  role === r
+                role="radio"
+                aria-checked={role === r.value}
+                onClick={() => setRole(r.value)}
+                className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  role === r.value
                     ? "bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-mid)] text-white shadow-md"
                     : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                {r}
+                {r.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">First Name</label>
-            <input
-              type="text"
-              placeholder="John"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 outline-none transition-all text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name</label>
-            <input
-              type="text"
-              placeholder="Doe"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 outline-none transition-all text-sm"
-            />
-          </div>
-        </div>
+        <Input
+          label="Full Name"
+          placeholder="Jordan Lee"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+          required
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-          <input
-            type="email"
-            placeholder="you@example.com"
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 outline-none transition-all text-sm"
-          />
-        </div>
+        <Input
+          type="email"
+          label="Email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+          required
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-          <input
-            type="password"
-            placeholder="••••••••"
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 outline-none transition-all text-sm"
-          />
-        </div>
+        <Input
+          type="password"
+          label="Password"
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
+          minLength={8}
+          required
+        />
 
-        <button type="submit" className="btn-primary w-full">
+        {error && (
+          <p role="alert" className="text-sm text-danger-600 bg-danger-50 rounded-xl px-4 py-2.5">
+            {error}
+          </p>
+        )}
+
+        <Button type="submit" fullWidth loading={loading}>
           Create Account
-        </button>
+        </Button>
       </form>
 
       <p className="text-center text-sm text-gray-500 mt-6">
